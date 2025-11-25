@@ -1,0 +1,84 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# Ask user for an image
+# -----------------------------
+img_path = input("Enter image path: ")
+
+img = cv2.imread(img_path)
+if img is None:
+    raise ValueError("Could not load image. Check path.")
+
+# Convert to grayscale for frequency sampling
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# -----------------------------
+# Spatial Sampling Function
+# -----------------------------
+def spatial_sample(img, factor):
+    h, w = img.shape[:2]
+    return cv2.resize(img, (w // factor, h // factor), interpolation=cv2.INTER_AREA)
+
+# -----------------------------
+# Frequency Sampling Function
+# -----------------------------
+def frequency_sample(gray_img, factor):
+    # FFT
+    fft_img = np.fft.fft2(gray_img)
+    fft_shift = np.fft.fftshift(fft_img)
+
+    h, w = gray_img.shape
+    half_h, half_w = h // 2, w // 2
+
+    # Create frequency mask
+    mask = np.zeros_like(gray_img, dtype=np.uint8)
+    mask_size_h = half_h // factor
+    mask_size_w = half_w // factor
+
+    # Keep only low frequencies
+    mask[half_h - mask_size_h : half_h + mask_size_h,
+         half_w - mask_size_w : half_w + mask_size_w] = 1
+
+    # Apply mask
+    filtered_fft = fft_shift * mask
+
+    # Inverse FFT
+    fft_ishift = np.fft.ifftshift(filtered_fft)
+    reconstructed = np.abs(np.fft.ifft2(fft_ishift))
+
+    return reconstructed.astype(np.uint8)
+
+# -----------------------------
+# Generate Spatial Samples
+# -----------------------------
+sp_half = spatial_sample(img, 2)
+sp_quarter = spatial_sample(img, 4)
+sp_eighth = spatial_sample(img, 8)
+sp_sixteenth = spatial_sample(img, 16)
+
+# -----------------------------
+# Generate Frequency Samples
+# -----------------------------
+fq_half = frequency_sample(gray, 2)
+fq_quarter = frequency_sample(gray, 4)
+fq_eighth = frequency_sample(gray, 8)
+fq_sixteenth = frequency_sample(gray, 16)
+
+# -----------------------------
+# Save Outputs
+# -----------------------------
+cv2.imwrite("spatial_half.png", sp_half)
+cv2.imwrite("spatial_quarter.png", sp_quarter)
+cv2.imwrite("spatial_eighth.png", sp_eighth)
+cv2.imwrite("spatial_sixteenth.png", sp_sixteenth)
+
+cv2.imwrite("freq_half.png", fq_half)
+cv2.imwrite("freq_quarter.png", fq_quarter)
+cv2.imwrite("freq_eighth.png", fq_eighth)
+cv2.imwrite("freq_sixteenth.png", fq_sixteenth)
+
+print("Done! All output images saved:")
+print("  spatial_*.png")
+print("  freq_*.png")
